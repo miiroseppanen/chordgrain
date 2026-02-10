@@ -32,10 +32,12 @@ Grain size, density, scale, chord, note, sample position (percent), continuous (
 4. **Continuous mode** continuous and playhead, play_speed param, freeze locks position.
 
 Default sample behavior:
+- `sample_file` uses norns audio root `_path.audio` for file browsing
 - On init, script checks `/home/we/dust/audio/common/hermit_leaves.wav`
 - Then checks `/home/we/dust/audio/hermit_leaves.wav`
 - If found, sets `sample_file` param and loads it through SampleManager
 - If not found, script continues safely without sample load
+- Manual sample load runs only when file path exists, invalid paths are ignored without script crash
 
 ## Grid transport compatibility
 

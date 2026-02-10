@@ -10,7 +10,12 @@ function SampleManager.load(file)
     s.sample_path = file
     s.sample_name = string.match(file, "([^/\\]+)$") or file
   end
-  EngineAdapter.load_sample(file)
+  local ok = EngineAdapter.load_sample(file)
+  if ok then
+    print("chordgrain: sample loaded " .. file)
+  else
+    print("chordgrain: sample load failed " .. file)
+  end
 end
 
 return SampleManager

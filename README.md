@@ -29,7 +29,9 @@ On init, chordgrain tries to load `hermit_leaves.wav` from norns audio library p
 - `/home/we/dust/audio/common/hermit_leaves.wav`
 - `/home/we/dust/audio/hermit_leaves.wav`
 
-If found, this path is applied to `sample_file` and loaded automatically. You can still change sample anytime from the `sample_file` param.
+If found, this path is applied to `sample_file` and loaded automatically.
+
+`sample_file` browser opens at `_path.audio` and manual selection stays available. Sample loads only run for paths that exist, so invalid paths are ignored safely.
 
 ## Grid parity checklist
 

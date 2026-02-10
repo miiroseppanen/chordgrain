@@ -1,5 +1,7 @@
 -- chordgrain.lua: grid focused chord aware granular sampler
 
+engine.name = "Glut"
+
 local State = include("lib/state")
 local Scales = include("lib/scales")
 local Chords = include("lib/chords")
@@ -16,6 +18,16 @@ local DEFAULT_SAMPLE_PATHS = {
   "/home/we/dust/audio/common/hermit_leaves.wav",
   "/home/we/dust/audio/hermit_leaves.wav",
 }
+
+local function valid_sample_path(path)
+  if not path or path == "" then
+    return false
+  end
+  if not util or not util.file_exists then
+    return false
+  end
+  return util.file_exists(path)
+end
 
 local function sync_state_from_params()
   s.grain_size = params:get("grain_size")
@@ -75,7 +87,7 @@ local function grid_key(g, x, y, z)
   end
 end
 
-local function enc(n, d)
+local function handle_enc(n, d)
   if n == 1 then
     s.scrub = math.max(0, math.min(1, s.scrub + d * 0.02))
     s.playhead = s.scrub
@@ -91,7 +103,7 @@ local function enc(n, d)
   end
 end
 
-local function key(n, z)
+local function handle_key(n, z)
   if z == 0 then return end
   if n == 1 then return end
   if n == 2 then
@@ -133,11 +145,22 @@ end
 
 local function init_params()
   if not params then return end
-  params:add_group("chordgrain", "chordgrain", 7)
-  params:add_number("grain_size", "Grain size", 1, 100, 30)
-  params:add_number("density", "Density", 1, 100, 40)
+  params:add_separator("chordgrain_sample", "Sample")
+  if params.add and _path and _path.audio then
+    params:add({
+      type = "file",
+      id = "sample_file",
+      name = "Sample",
+      path = _path.audio,
+    })
+  else
+    params:add_file("sample_file", "Sample")
+  end
+
+  params:add_separator("chordgrain_defaults", "Default settings")
+  params:add_number("grain_size", "Grain size", 1, 100, 45)
+  params:add_number("density", "Density", 1, 100, 80)
   params:add_number("play_speed", "Play speed", 1, 200, 60)
-  params:add_file("sample_file", "Sample")
   params:add_number("chord_spread", "Chord spread", 0, 100, 8)
   params:add_option("chord_tones_limit", "Chord tones", { "2", "3", "4" }, 2)
   params:add_option("quantize", "Quantize", { "Off", "On" }, 2)
@@ -156,7 +179,7 @@ local function init_params()
     EngineAdapter.set_freeze(s.freeze)
   end)
   params:set_action("sample_file", function(file)
-    if file and file ~= "" then
+    if valid_sample_path(file) then
       SampleManager.load(file)
     end
   end)
@@ -165,15 +188,12 @@ end
 local function maybe_load_default_sample()
   if not params then return false end
   local current = params:get("sample_file")
-  if current and current ~= "" then
-    return false
-  end
-  if not util or not util.file_exists then
+  if current and current ~= "" and valid_sample_path(current) then
     return false
   end
 
   for _, path in ipairs(DEFAULT_SAMPLE_PATHS) do
-    if util.file_exists(path) then
+    if valid_sample_path(path) then
       params:set("sample_file", path)
       return true
     end
@@ -184,9 +204,6 @@ end
 function init()
   s = State.init()
   _G.chordgrain_state = s
-  if engine then
-    engine.name = "Glut"
-  end
 
   EngineAdapter.init(s)
   init_params()
@@ -194,12 +211,26 @@ function init()
   sync_state_from_params()
   s.scale = Scales.get_scale(s.scale_id)
   s.chord = Chords.get_chord(s.chord_id)
+  EngineAdapter.set_grain_size(s.grain_size or 45)
+  EngineAdapter.set_density(s.density or 80)
+  EngineAdapter.set_freeze(s.freeze or false)
+  EngineAdapter.set_position(s.playhead or 0)
 
   GridBackend.connect(grid_key)
 
   if tick_metro then tick_metro:stop() end
   tick_metro = metro.init(tick, 1 / 30)
   if tick_metro then tick_metro:start() end
+end
+
+function enc(n, d)
+  if not s then return end
+  handle_enc(n, d)
+end
+
+function key(n, z)
+  if not s then return end
+  handle_key(n, z)
 end
 
 function redraw()
