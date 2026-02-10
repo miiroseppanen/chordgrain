@@ -12,6 +12,11 @@ local SampleManager = include("lib/sample_manager")
 local s
 local tick_metro
 
+local DEFAULT_SAMPLE_PATHS = {
+  "/home/we/dust/audio/common/hermit_leaves.wav",
+  "/home/we/dust/audio/hermit_leaves.wav",
+}
+
 local function sync_state_from_params()
   s.grain_size = params:get("grain_size")
   s.density = params:get("density")
@@ -121,7 +126,9 @@ local function tick()
 
   EngineAdapter.tick(dt, s)
   GridBackend.render(GridMap.render_leds, s)
-  UI.redraw(s)
+  if not (norns and norns.menu and norns.menu.status and norns.menu.status()) then
+    UI.redraw(s)
+  end
 end
 
 local function init_params()
@@ -155,6 +162,25 @@ local function init_params()
   end)
 end
 
+local function maybe_load_default_sample()
+  if not params then return false end
+  local current = params:get("sample_file")
+  if current and current ~= "" then
+    return false
+  end
+  if not util or not util.file_exists then
+    return false
+  end
+
+  for _, path in ipairs(DEFAULT_SAMPLE_PATHS) do
+    if util.file_exists(path) then
+      params:set("sample_file", path)
+      return true
+    end
+  end
+  return false
+end
+
 function init()
   s = State.init()
   _G.chordgrain_state = s
@@ -164,6 +190,7 @@ function init()
 
   EngineAdapter.init(s)
   init_params()
+  maybe_load_default_sample()
   sync_state_from_params()
   s.scale = Scales.get_scale(s.scale_id)
   s.chord = Chords.get_chord(s.chord_id)

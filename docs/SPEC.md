@@ -31,6 +31,12 @@ Grain size, density, scale, chord, note, sample position (percent), continuous (
 3. **Polyphonic chord play** Root plus chord intervals, chord_tones_limit and chord_spread, play_chord loop.
 4. **Continuous mode** continuous and playhead, play_speed param, freeze locks position.
 
+Default sample behavior:
+- On init, script checks `/home/we/dust/audio/common/hermit_leaves.wav`
+- Then checks `/home/we/dust/audio/hermit_leaves.wav`
+- If found, sets `sample_file` param and loads it through SampleManager
+- If not found, script continues safely without sample load
+
 ## Grid transport compatibility
 
 Grid transport is normalized in `lib/grid_backend.lua`. This keeps monome grid and midigrid behavior identical for key mapping, LED levels, and refresh timing.

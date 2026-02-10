@@ -23,6 +23,14 @@ No extra setup is required. The script runs on a default norns.
 
 All engine calls go through the EngineAdapter module. If Glut is not available or calls fail, the app runs safely without audio. The adapter uses pcall for engine calls.
 
+## Sample default
+
+On init, chordgrain tries to load `hermit_leaves.wav` from norns audio library paths:
+- `/home/we/dust/audio/common/hermit_leaves.wav`
+- `/home/we/dust/audio/hermit_leaves.wav`
+
+If found, this path is applied to `sample_file` and loaded automatically. You can still change sample anytime from the `sample_file` param.
+
 ## Grid parity checklist
 
 - Connect monome grid and verify row mapping and LED levels
