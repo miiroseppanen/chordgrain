@@ -13,7 +13,7 @@ local EngineAdapter = include("lib/engine_adapter")
 local SampleManager = include("lib/sample_manager")
 
 local s
-local metro
+local tick_metro
 
 local function sync_state_from_params()
   s.grain_size = params:get("grain_size")
@@ -93,11 +93,10 @@ end
 local function key(n, z)
   if z == 0 then return end
   if n == 1 then
-    s.continuous = not s.continuous
-    if s.continuous then
-      s.playhead = s.last_pos and s.last_pos or s.scrub
-    end
-  elseif n == 3 then
+    norns.menu.toggle(true)
+    return
+  end
+  if n == 3 then
     params:set("freeze", 1 - params:get("freeze"))
     s.freeze = params:get("freeze") == 2
     EngineAdapter.set_freeze(s.freeze)
@@ -170,9 +169,9 @@ function init()
     grid = grid.connect()
     grid.key = grid_key
   end)
-  if metro then metro:stop() end
-  metro = metro.alloc(tick, 1 / 30)
-  metro:start()
+  if tick_metro then tick_metro:stop() end
+  tick_metro = metro.init(tick, 1 / 30)
+  if tick_metro then tick_metro:start() end
 end
 
 function redraw()
@@ -180,6 +179,6 @@ function redraw()
 end
 
 function cleanup()
-  if metro then metro:stop() end
+  if tick_metro then tick_metro:stop() end
   _G.chordgrain_state = nil
 end
