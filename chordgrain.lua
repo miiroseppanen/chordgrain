@@ -47,6 +47,17 @@ local function trigger_at(pos_norm, degree)
   local intervals = chord and chord.intervals or { 0 }
   local limit = s.chord_tones_limit or 3
   local notes = Chords.chord_notes(midi, intervals, limit)
+  local chord_degrees = {}
+  if intervals and #intervals > 0 then
+    for i = 1, math.min(limit, #intervals) do
+      local d = degree + (intervals[i] or 0)
+      if d >= 1 and d <= 80 then
+        chord_degrees[#chord_degrees + 1] = d
+      end
+    end
+  else
+    chord_degrees[1] = degree
+  end
   local opts = {
     chord_spread = s.chord_spread or 0.08,
     chord_tones_limit = limit,
@@ -55,6 +66,9 @@ local function trigger_at(pos_norm, degree)
   s.last_note = midi
   s.last_pos = pos_norm
   s.playhead = pos_norm
+  s.pressed_degree = degree
+  s.last_chord_notes = notes
+  s.last_chord_degrees = chord_degrees
   EngineAdapter.set_position(pos_norm)
 end
 

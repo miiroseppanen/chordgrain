@@ -29,8 +29,17 @@ function GridMap.key_to_play(x, y)
   if y < 4 or y > 8 then return nil, nil end
   local row_index = y - 4
   local pos_norm = (x - 1) / 15
-  local degree = 1 + row_index * 8 + math.floor((x - 1) / 2)
+  local degree = 1 + row_index * 16 + (x - 1)
   return pos_norm, degree
+end
+
+function GridMap.degree_to_key(degree)
+  if not degree or degree < 1 then return nil, nil end
+  local idx = degree - 1
+  local row_index = math.floor(idx / 16)
+  local col_index = idx % 16
+  if row_index < 0 or row_index > 4 then return nil, nil end
+  return col_index + 1, row_index + 4
 end
 
 -- LED level policy
@@ -38,6 +47,7 @@ end
 -- inactive controls: 3
 -- last trigger marker: 10
 -- continuous playhead marker: 4
+-- chord tones: 8
 function GridMap.render_leds(g, s)
   if not g then return end
   g:all(0)
@@ -82,6 +92,22 @@ function GridMap.render_leds(g, s)
     local head_x = math.floor(playhead * 15) + 1
     head_x = math.max(1, math.min(16, head_x))
     g:led(head_x, 8, 4)
+  end
+
+  if s.last_chord_degrees then
+    for _, degree in ipairs(s.last_chord_degrees) do
+      local x, y = GridMap.degree_to_key(degree)
+      if x and y then
+        g:led(x, y, 8)
+      end
+    end
+  end
+
+  if s.pressed_degree then
+    local px, py = GridMap.degree_to_key(s.pressed_degree)
+    if px and py then
+      g:led(px, py, 15)
+    end
   end
 end
 
