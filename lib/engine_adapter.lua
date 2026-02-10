@@ -23,6 +23,26 @@ function EngineAdapter.set_density(v)
   EngineGlut.set_density(v)
 end
 
+function EngineAdapter.set_jitter(v)
+  EngineGlut.set_jitter(v)
+end
+
+function EngineAdapter.set_spread(v)
+  EngineGlut.set_spread(v)
+end
+
+function EngineAdapter.set_envscale(v)
+  EngineGlut.set_envscale(v)
+end
+
+function EngineAdapter.set_volume(v)
+  EngineGlut.set_volume(v)
+end
+
+function EngineAdapter.set_rate(v)
+  EngineGlut.set_rate(v)
+end
+
 function EngineAdapter.set_freeze(b)
   EngineGlut.set_freeze(b)
 end

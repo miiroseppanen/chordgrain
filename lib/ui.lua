@@ -43,7 +43,7 @@ function UI.redraw(s)
   screen.stroke()
 
   screen.level(15)
-  local speed = s.play_speed or 60
+  local speed = s.play_speed or 70
   screen.move(0, 16)
   screen.text("Gr " .. tostring(s.grain_size or 0) .. " De " .. tostring(s.density or 0) .. " Sp " .. tostring(speed))
 
@@ -60,10 +60,10 @@ function UI.redraw(s)
 
   local pos_pct = math.floor((s.playhead or 0) * 100)
   screen.move(0, 40)
-  screen.text("Pos " .. tostring(pos_pct) .. "% C " .. (s.continuous and "On" or "Off") .. " F " .. (s.freeze and "On" or "Off"))
+  screen.text("Pos " .. tostring(pos_pct) .. "% C " .. (s.continuous and "On" or "Off") .. " F " .. (s.freeze and "On" or "Off") .. " 1S " .. (s.one_shot and "On" or "Off"))
 
   screen.move(0, 48)
-  screen.text("Sm " .. clip((s.sample_name and s.sample_name ~= "" and s.sample_name or "none"), 18))
+  screen.text("Pr " .. tostring(s.pitch_range or 60) .. " Fo " .. tostring(s.focus_amount or 60) .. " Sm " .. clip((s.sample_name and s.sample_name ~= "" and s.sample_name or "none"), 10))
 
   screen.update()
 end

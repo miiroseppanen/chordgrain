@@ -9,6 +9,10 @@ local MAP = {
   pitch = "pitch",
   size = "size",
   density = "density",
+  jitter = "jitter",
+  spread = "spread",
+  envscale = "envscale",
+  volume = "volume",
   freeze = "freeze",
   rate = "speed",
   voices = "voices",
@@ -24,10 +28,19 @@ end
 function EngineGlut.init()
   if engine then
     engine.name = "Glut"
-    if engine.volume then
-      pcall(engine.volume, 1.0)
-    end
   end
+end
+
+local function set_voice_param(fn, value)
+  if not engine or not engine[fn] then
+    return false, "missing " .. fn
+  end
+  local ok = true
+  for voice = 1, 7 do
+    local v_ok = pcall(engine[fn], voice, value)
+    ok = ok and v_ok
+  end
+  return ok, ok and nil or (fn .. " failed")
 end
 
 function EngineGlut.load_sample(path)
@@ -90,6 +103,26 @@ function EngineGlut.set_density(v)
   return ok, ok and nil or "density failed"
 end
 
+function EngineGlut.set_jitter(v)
+  local fn = MAP.jitter or "jitter"
+  return set_voice_param(fn, math.max(0, math.min(1, v / 100)))
+end
+
+function EngineGlut.set_spread(v)
+  local fn = MAP.spread or "spread"
+  return set_voice_param(fn, math.max(0, math.min(1, v / 100)))
+end
+
+function EngineGlut.set_envscale(v)
+  local fn = MAP.envscale or "envscale"
+  return set_voice_param(fn, math.max(0, math.min(1, v / 100)))
+end
+
+function EngineGlut.set_volume(v)
+  local fn = MAP.volume or "volume"
+  return set_voice_param(fn, math.max(0, math.min(1, v / 100)))
+end
+
 function EngineGlut.set_freeze(b)
   local fn = MAP.freeze or "freeze"
   return safe_call(fn, b and 1 or 0)
@@ -108,6 +141,11 @@ function EngineGlut.set_position(pos_norm)
   return ok, ok and nil or "seek failed"
 end
 
+function EngineGlut.set_rate(v)
+  local fn = MAP.rate or "speed"
+  return set_voice_param(fn, math.max(0.125, math.min(4, v / 100)))
+end
+
 function EngineGlut.play_voice(midi_note, pos_norm, opts)
   opts = opts or {}
   local voice = opts.voice or 1
@@ -119,11 +157,22 @@ function EngineGlut.play_voice(midi_note, pos_norm, opts)
     pcall(engine[seek_fn], voice, pos_norm)
   end
   if engine and engine[pitch_fn] then
-    local pitch_ratio = math.pow(2, ((midi_note or 60) - 60) / 12)
+    local semitones = (midi_note or 60) - 60
+    local pitch_range = (opts.pitch_range == nil) and 40 or opts.pitch_range
+    local scaled = semitones * math.max(0, math.min(1, pitch_range / 100))
+    local pitch_ratio = math.pow(2, scaled / 12)
     pcall(engine[pitch_fn], voice, pitch_ratio)
   end
   if engine and engine[trig_fn] then
-    return pcall(engine[trig_fn], voice, 1)
+    local ok = pcall(engine[trig_fn], voice, 1)
+    if opts.one_shot and clock and clock.run then
+      local release_s = opts.one_shot_release_s or 0.15
+      clock.run(function()
+        clock.sleep(release_s)
+        pcall(engine[trig_fn], voice, 0)
+      end)
+    end
+    return ok
   end
   return false, "no gate"
 end
@@ -138,6 +187,9 @@ function EngineGlut.play_chord(notes_midi, pos_norm, opts)
     local pos_i = math.max(0, math.min(1, pos_norm + offset))
     local voice_opts = {
       voice = i,
+      one_shot = opts.one_shot,
+      one_shot_release_s = opts.one_shot_release_s,
+      pitch_range = opts.pitch_range,
     }
     EngineGlut.play_voice(note, pos_i, voice_opts)
   end
