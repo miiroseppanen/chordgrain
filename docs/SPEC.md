@@ -22,7 +22,8 @@ K3: Density. Press toggles freeze.
 
 ### On screen
 
-Grain size, density, scale, chord, note, chord notes, sample position (percent), continuous (on/off), freeze (on/off), playhead and last trigger bar.
+Main view shows grain size, density, speed, scale, chord, root, octave, note, sample position (percent), continuous (on/off), freeze (on/off), sample name, and top playhead and trigger markers.
+Loading view shows control hints only during startup.
 
 ## Implementation goals
 
@@ -46,4 +47,5 @@ Grid transport is normalized in `lib/grid_backend.lua`. This keeps monome grid a
 Chord note visualization:
 - Pressed play key is highlighted at full level in grid
 - Other notes of selected chord are highlighted at medium level
-- The same chord notes are shown on screen as note names
+- Scale, chord, root and octave changes retrigger the latest pressed note selection
+- Playhead marker does not jump to note trigger position

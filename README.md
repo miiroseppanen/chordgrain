@@ -23,7 +23,12 @@ Grid play area behavior:
 - Rows 4 to 8 use one note per key mapping
 - Pressing one key triggers the selected chord from that note
 - Grid highlights the pressed note and chord tones
-- Screen shows the same chord notes after key press
+- Scale, chord, root and octave changes retrigger the latest pressed note so changes are immediately audible
+- Playhead does not jump on note press, it continues from transport position
+
+Loading screen behavior:
+- Control hints are shown only during startup loading screen
+- Main view shows status and settings without hint text clutter
 
 ## Glut dependency and adapter
 

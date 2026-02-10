@@ -1,4 +1,7 @@
--- chordgrain.lua: grid focused chord aware granular sampler
+-- chordgrain
+-- grid chord aware granular sampler
+-- norns: K1 menu, E1 pos, E2 grain, E3 density, K2 cont, K3 freeze
+-- grid: row1 scale, row2 chord, row3 root octave, rows4-8 play
 
 engine.name = "Glut"
 
@@ -65,11 +68,21 @@ local function trigger_at(pos_norm, degree)
   EngineAdapter.play_chord(notes, pos_norm, opts)
   s.last_note = midi
   s.last_pos = pos_norm
-  s.playhead = pos_norm
   s.pressed_degree = degree
   s.last_chord_notes = notes
   s.last_chord_degrees = chord_degrees
   EngineAdapter.set_position(pos_norm)
+end
+
+local function retrigger_current_selection()
+  if not s or not s.pressed_degree then
+    return
+  end
+  local pos = s.last_pos
+  if pos == nil then
+    pos = s.playhead or s.scrub or 0
+  end
+  trigger_at(pos, s.pressed_degree)
 end
 
 local function grid_key(g, x, y, z)
@@ -78,21 +91,25 @@ local function grid_key(g, x, y, z)
   if scale_id then
     s.scale_id = scale_id
     s.scale = Scales.get_scale(scale_id)
+    retrigger_current_selection()
     return
   end
   local chord_id = GridMap.key_to_chord_id(x, y)
   if chord_id then
     s.chord_id = chord_id
     s.chord = Chords.get_chord(chord_id)
+    retrigger_current_selection()
     return
   end
   local root, oct = GridMap.key_to_root(x, y)
   if root ~= nil then
     s.root = root
+    retrigger_current_selection()
     return
   end
   if oct ~= nil then
     s.octave = oct
+    retrigger_current_selection()
     return
   end
   local pos_norm, degree = GridMap.key_to_play(x, y)
