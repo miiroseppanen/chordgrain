@@ -22,3 +22,10 @@ No extra setup is required. The script runs on a default norns.
 ## Glut dependency and adapter
 
 All engine calls go through the EngineAdapter module. If Glut is not available or calls fail, the app runs safely without audio. The adapter uses pcall for engine calls.
+
+## Grid parity checklist
+
+- Connect monome grid and verify row mapping and LED levels
+- Connect midigrid and run the same key sequence
+- Confirm position and degree mapping match on both devices
+- Confirm K1 short press always follows norns menu toggle behavior

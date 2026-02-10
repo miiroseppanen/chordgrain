@@ -4,13 +4,13 @@ local State = include("lib/state")
 local Scales = include("lib/scales")
 local Chords = include("lib/chords")
 local GridMap = include("lib/gridmap")
+local GridBackend = include("lib/grid_backend")
 local UI = include("lib/ui")
 local EngineAdapter = include("lib/engine_adapter")
 local SampleManager = include("lib/sample_manager")
 
 local s
 local tick_metro
-local g
 
 local function sync_state_from_params()
   s.grain_size = params:get("grain_size")
@@ -120,7 +120,7 @@ local function tick()
   end
 
   EngineAdapter.tick(dt, s)
-  GridMap.render_leds(g, s)
+  GridBackend.render(GridMap.render_leds, s)
   UI.redraw(s)
 end
 
@@ -168,14 +168,7 @@ function init()
   s.scale = Scales.get_scale(s.scale_id)
   s.chord = Chords.get_chord(s.chord_id)
 
-  if grid and grid.connect then
-    g = grid.connect()
-    if g then
-      g.key = grid_key
-    end
-  else
-    g = nil
-  end
+  GridBackend.connect(grid_key)
 
   if tick_metro then tick_metro:stop() end
   tick_metro = metro.init(tick, 1 / 30)
@@ -191,6 +184,6 @@ function cleanup()
     tick_metro:stop()
     tick_metro = nil
   end
-  g = nil
+  GridBackend.disconnect()
   _G.chordgrain_state = nil
 end

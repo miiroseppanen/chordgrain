@@ -33,6 +33,11 @@ function GridMap.key_to_play(x, y)
   return pos_norm, degree
 end
 
+-- LED level policy
+-- selected controls: 15
+-- inactive controls: 3
+-- last trigger marker: 10
+-- continuous playhead marker: 4
 function GridMap.render_leds(g, s)
   if not g then return end
   g:all(0)
