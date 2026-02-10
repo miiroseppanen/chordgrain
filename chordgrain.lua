@@ -1,5 +1,9 @@
 -- chordgrain.lua: grid focused chord aware granular sampler
 
+function init() end
+function redraw() end
+function cleanup() end
+
 local State = include("lib/state")
 local Scales = include("lib/scales")
 local Chords = include("lib/chords")
@@ -154,16 +158,19 @@ end
 function init()
   s = State.init()
   _G.chordgrain_state = s
-  engine.name = "Glut"
-  EngineAdapter.init(s)
-  init_params()
-  sync_state_from_params()
-  s.scale = Scales.get_scale(s.scale_id)
-  s.chord = Chords.get_chord(s.chord_id)
-
-  grid = grid.connect()
-  grid.key = grid_key
-
+  if engine and engine.name then engine.name = "Glut" end
+  pcall(function() EngineAdapter.init(s) end)
+  pcall(function()
+    init_params()
+    sync_state_from_params()
+    s.scale = Scales.get_scale(s.scale_id)
+    s.chord = Chords.get_chord(s.chord_id)
+  end)
+  pcall(function()
+    grid = grid.connect()
+    grid.key = grid_key
+  end)
+  if metro then metro:stop() end
   metro = metro.alloc(tick, 1 / 30)
   metro:start()
 end
