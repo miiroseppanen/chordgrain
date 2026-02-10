@@ -1,9 +1,5 @@
 -- chordgrain.lua: grid focused chord aware granular sampler
 
-function init() end
-function redraw() end
-function cleanup() end
-
 local State = include("lib/state")
 local Scales = include("lib/scales")
 local Chords = include("lib/chords")
@@ -14,6 +10,7 @@ local SampleManager = include("lib/sample_manager")
 
 local s
 local tick_metro
+local g
 
 local function sync_state_from_params()
   s.grain_size = params:get("grain_size")
@@ -28,7 +25,6 @@ end
 
 local function trigger_at(pos_norm, degree)
   sync_state_from_params()
-  local root_midi = (s.octave + 1) * 12 + s.root
   local midi = Scales.degree_to_midi(degree, s.root, s.octave, s.scale and s.scale.intervals, s.quantize)
   local chord = s.chord
   local intervals = chord and chord.intervals or { 0 }
@@ -92,11 +88,14 @@ end
 
 local function key(n, z)
   if z == 0 then return end
-  if n == 1 then
-    norns.menu.toggle(true)
-    return
-  end
-  if n == 3 then
+  if n == 1 then return end
+  if n == 2 then
+    s.continuous = not s.continuous
+    if s.continuous then
+      s.playhead = s.last_pos and s.last_pos or s.scrub
+      EngineAdapter.set_position(s.playhead)
+    end
+  elseif n == 3 then
     params:set("freeze", 1 - params:get("freeze"))
     s.freeze = params:get("freeze") == 2
     EngineAdapter.set_freeze(s.freeze)
@@ -104,6 +103,7 @@ local function key(n, z)
 end
 
 local function tick()
+  if not s then return end
   local t = util.time()
   local dt = s.last_tick_time > 0 and (t - s.last_tick_time) or 0.033
   s.last_tick_time = t
@@ -120,11 +120,12 @@ local function tick()
   end
 
   EngineAdapter.tick(dt, s)
-  GridMap.render_leds(grid, s)
+  GridMap.render_leds(g, s)
   UI.redraw(s)
 end
 
 local function init_params()
+  if not params then return end
   params:add_group("chordgrain", "chordgrain", 7)
   params:add_number("grain_size", "Grain size", 1, 100, 30)
   params:add_number("density", "Density", 1, 100, 40)
@@ -157,18 +158,25 @@ end
 function init()
   s = State.init()
   _G.chordgrain_state = s
-  if engine and engine.name then engine.name = "Glut" end
-  pcall(function() EngineAdapter.init(s) end)
-  pcall(function()
-    init_params()
-    sync_state_from_params()
-    s.scale = Scales.get_scale(s.scale_id)
-    s.chord = Chords.get_chord(s.chord_id)
-  end)
-  pcall(function()
-    grid = grid.connect()
-    grid.key = grid_key
-  end)
+  if engine then
+    engine.name = "Glut"
+  end
+
+  EngineAdapter.init(s)
+  init_params()
+  sync_state_from_params()
+  s.scale = Scales.get_scale(s.scale_id)
+  s.chord = Chords.get_chord(s.chord_id)
+
+  if grid and grid.connect then
+    g = grid.connect()
+    if g then
+      g.key = grid_key
+    end
+  else
+    g = nil
+  end
+
   if tick_metro then tick_metro:stop() end
   tick_metro = metro.init(tick, 1 / 30)
   if tick_metro then tick_metro:start() end
@@ -179,6 +187,10 @@ function redraw()
 end
 
 function cleanup()
-  if tick_metro then tick_metro:stop() end
+  if tick_metro then
+    tick_metro:stop()
+    tick_metro = nil
+  end
+  g = nil
   _G.chordgrain_state = nil
 end

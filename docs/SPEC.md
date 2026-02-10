@@ -11,8 +11,9 @@ Rows 4 to 8: Play area. X sets position, Y sets degree.
 
 ### Encoders
 
-K1: Scrub, moves playhead. Press toggles continuous mode.
-K2: Grain size.
+K1 short press: norns default menu toggle.
+E1: Scrub, moves playhead.
+K2: Grain size. Press toggles continuous mode.
 K3: Density. Press toggles freeze.
 
 ### On screen
