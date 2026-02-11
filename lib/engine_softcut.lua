@@ -43,7 +43,19 @@ function EngineSoftcut.init()
   if not softcut then
     return false, "no softcut"
   end
+  if audio then
+    if audio.level_cut then
+      pcall(audio.level_cut, 1.0)
+    end
+    if audio.level_adc_cut then
+      pcall(audio.level_adc_cut, 0.0)
+    end
+  end
   for voice = 1, MAX_VOICES do
+    safe_call("level_input_cut", voice, 0)
+    safe_call("rec", voice, 0)
+    safe_call("rec_level", voice, 0)
+    safe_call("pre_level", voice, 1.0)
     setup_voice(voice)
   end
   return true

@@ -1,8 +1,9 @@
 # chordgrain
 
-Chord aware grid instrument for norns with two playback paths:
-- Grain mode uses Glut for granular texture.
-- Sampler mode uses Softcut transport for smoother full sample travel.
+Chord aware grid instrument for norns with Glut playback.
+It has two internal behaviors:
+- Grain mode for textured granular movement.
+- Sampler style mode for steadier continuous playback.
 
 ## Install (norns)
 
@@ -39,17 +40,21 @@ Loading screen behavior:
 
 All engine calls go through the EngineAdapter module.
 - Grain mode delegates to `lib/engine_glut.lua`.
-- Sampler mode delegates to `lib/engine_softcut.lua`.
+- Sampler style mode also uses `lib/engine_glut.lua` with different defaults.
 
 If an engine call fails, the adapter keeps the script running safely.
 
 ## Sample default
 
 On init, chordgrain tries to load `hermit_leaves.wav` from norns audio library paths:
-- `/home/we/dust/audio/common/hermit_leaves.wav`
 - `/home/we/dust/audio/hermit_leaves.wav`
+- `/home/we/dust/audio/common/hermit_leaves.wav`
 
 If found, this path is applied to `sample_file` and loaded automatically.
+
+Sampler style transport note:
+- Transport speed controls playhead movement only.
+- Note pitch is controlled separately, so note changes do not force sample duration changes.
 
 `sample_file` browser opens at `_path.audio` and manual selection stays available. Sample loads only run for paths that exist, so invalid paths are ignored safely.
 

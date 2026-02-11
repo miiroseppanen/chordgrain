@@ -1,6 +1,7 @@
 -- engine_glut.lua: Glut engine implementation, all calls guarded
 
 local EngineGlut = {}
+local continuous_gate_on = false
 
 local MAP = {
   load = "read",
@@ -97,7 +98,7 @@ function EngineGlut.set_density(v)
   end
   local ok = true
   for voice = 1, 7 do
-    local v_ok = pcall(engine[fn], voice, v / 100)
+    local v_ok = pcall(engine[fn], voice, v)
     ok = ok and v_ok
   end
   return ok, ok and nil or "density failed"
@@ -175,6 +176,36 @@ function EngineGlut.play_voice(midi_note, pos_norm, opts)
     return ok
   end
   return false, "no gate"
+end
+
+function EngineGlut.set_continuous(on, midi_note, pos_norm, opts)
+  opts = opts or {}
+  local voice = opts.voice or 1
+  local seek_fn = MAP.pos or "seek"
+  local pitch_fn = MAP.pitch or "pitch"
+  local trig_fn = MAP.trig or "gate"
+
+  if engine and engine[seek_fn] and pos_norm ~= nil then
+    pcall(engine[seek_fn], voice, pos_norm)
+  end
+  if engine and engine[pitch_fn] then
+    local semitones = (midi_note or 60) - 60
+    local pitch_range = (opts.pitch_range == nil) and 40 or opts.pitch_range
+    local scaled = semitones * math.max(0, math.min(1, pitch_range / 100))
+    local pitch_ratio = math.pow(2, scaled / 12)
+    pcall(engine[pitch_fn], voice, pitch_ratio)
+  end
+  if engine and engine[trig_fn] then
+    if on and not continuous_gate_on then
+      pcall(engine[trig_fn], voice, 1)
+      continuous_gate_on = true
+    elseif (not on) and continuous_gate_on then
+      pcall(engine[trig_fn], voice, 0)
+      continuous_gate_on = false
+    end
+    return true
+  end
+  return false
 end
 
 function EngineGlut.play_chord(notes_midi, pos_norm, opts)

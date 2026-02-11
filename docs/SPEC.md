@@ -4,7 +4,7 @@
 
 Playback modes:
 - Grain mode: Glut granular playback.
-- Sampler mode: Softcut transport playback with smoother full sample travel.
+- Sampler style mode: Glut playback with steadier continuous output and separate note pitch control.
 
 ### Grid rows
 
@@ -31,7 +31,7 @@ Loading view shows control hints only during startup.
 
 ## Implementation goals
 
-1. **Engine integration** All engine calls route through adapter to Glut or Softcut.
+1. **Engine integration** All engine calls route through adapter to Glut backend.
 2. **Sample loading** File param and SampleManager, adapter loads sample.
 3. **Polyphonic chord play** Root plus chord intervals, chord_tones_limit and chord_spread, play_chord loop.
 4. **Continuous mode** continuous and playhead, play_speed param, freeze locks position.
@@ -39,12 +39,14 @@ Loading view shows control hints only during startup.
 Sampler mode behavior:
 - Uses linear transport based playhead movement.
 - Does not rely on periodic granular retrigger logic.
+- Avoids frame by frame hard seek during continuous playback.
 - Uses reduced pitch and chord scaling defaults to avoid mumble and excessive rate shifts.
+- Pitch changes apply to note voice pitch and keep transport speed independent.
 
 Default sample behavior:
 - `sample_file` uses norns audio root `_path.audio` for file browsing
-- On init, script checks `/home/we/dust/audio/common/hermit_leaves.wav`
-- Then checks `/home/we/dust/audio/hermit_leaves.wav`
+- On init, script checks `/home/we/dust/audio/hermit_leaves.wav`
+- Then checks `/home/we/dust/audio/common/hermit_leaves.wav`
 - If found, sets `sample_file` param and loads it through SampleManager
 - If not found, script continues safely without sample load
 - Manual sample load runs only when file path exists, invalid paths are ignored without script crash

@@ -20,8 +20,8 @@ local s
 local tick_metro
 
 local DEFAULT_SAMPLE_PATHS = {
-  "/home/we/dust/audio/common/hermit_leaves.wav",
   "/home/we/dust/audio/hermit_leaves.wav",
+  "/home/we/dust/audio/common/hermit_leaves.wav",
 }
 local PLAY_MODE_GRAIN = 1
 local PLAY_MODE_SAMPLER = 2
@@ -93,14 +93,17 @@ local function is_sampler_mode()
 end
 
 local function apply_play_mode_engine_state()
-  EngineAdapter.set_mode(s.play_mode_id)
   if is_sampler_mode() then
-    -- Sampler mode uses linear transport playback.
-    EngineAdapter.set_density(s.sampler_density or 80)
-    EngineAdapter.set_rate(s.play_speed or 100)
+    -- Sampler style: stable cloud with note pitch separate from transport.
+    EngineAdapter.set_grain_size(85)
+    EngineAdapter.set_density(s.sampler_density or 65)
+    EngineAdapter.set_jitter(0)
+    EngineAdapter.set_spread(0)
+    EngineAdapter.set_envscale(100)
+    EngineAdapter.set_rate(100)
   else
     EngineAdapter.set_grain_size(s.grain_size or 70)
-    EngineAdapter.set_density(s.density or 35)
+    EngineAdapter.set_density(s.density or 28)
     EngineAdapter.set_jitter(s.texture_jitter or 5)
     EngineAdapter.set_spread(s.texture_spread or 5)
     EngineAdapter.set_envscale(90)
@@ -196,6 +199,12 @@ local function trigger_at(pos_norm, degree)
   s.last_chord_notes = notes
   s.last_chord_degrees = chord_degrees
   EngineAdapter.set_position(focused_pos)
+  if is_sampler_mode() and s.continuous and not s.one_shot and not s.freeze then
+    EngineAdapter.set_continuous(true, midi, focused_pos, {
+      pitch_range = s.sampler_pitch_range or 32,
+      voice = 1,
+    })
+  end
 end
 
 local function retrigger_current_selection()
@@ -270,6 +279,15 @@ local function handle_key(n, z)
     if s.continuous then
       s.playhead = s.last_pos and s.last_pos or s.scrub
       EngineAdapter.set_position(s.playhead)
+      if is_sampler_mode() and not s.one_shot then
+        local note = s.last_note or play_degree_to_midi(1)
+        EngineAdapter.set_continuous(true, note, s.playhead, {
+          pitch_range = s.sampler_pitch_range or 32,
+          voice = 1,
+        })
+      end
+    else
+      EngineAdapter.set_continuous(false, s.last_note or 60, s.playhead, { voice = 1 })
     end
   elseif n == 3 then
     params:set("freeze", 1 - params:get("freeze"))
@@ -300,7 +318,18 @@ local function tick()
     if s.playhead >= 1 then s.playhead = s.playhead - 1 end
     if s.playhead < 0 then s.playhead = s.playhead + 1 end
     EngineAdapter.set_position(s.playhead)
+    if is_sampler_mode() then
+      local note = s.last_note or play_degree_to_midi(1)
+      EngineAdapter.set_continuous(true, note, s.playhead, {
+        pitch_range = s.sampler_pitch_range or 32,
+        voice = 1,
+      })
+    end
 
+  end
+
+  if (not is_sampler_mode()) or (not s.continuous) or s.one_shot or s.freeze then
+    EngineAdapter.set_continuous(false, s.last_note or 60, s.playhead, { voice = 1 })
   end
 
   if s.focus_active and not s.freeze then
@@ -340,9 +369,9 @@ local function init_params()
   params:add_separator("chordgrain_defaults", "Default settings")
   params:add_option("play_mode", "Play mode", { "Grain", "Sampler" }, 2)
   params:add_number("grain_size", "Grain size", 1, 100, 70)
-  params:add_number("density", "Density", 1, 100, 35)
-  params:add_number("sampler_density", "Sampler density", 1, 100, 80)
-  params:add_number("play_speed", "Play speed", 1, 200, 100)
+  params:add_number("density", "Density", 1, 100, 28)
+  params:add_number("sampler_density", "Sampler density", 1, 100, 65)
+  params:add_number("play_speed", "Play speed", 1, 200, 20)
   params:add_option("one_shot", "One shot mode", { "Off", "On" }, 1)
   params:add_number("pitch_range", "Pitch range", 0, 100, 60)
   params:add_number("sampler_pitch_range", "Sampler pitch", 0, 100, 32)
@@ -359,7 +388,7 @@ local function init_params()
 
   params:set_action("play_mode", function(v)
     s.play_mode_id = v
-    EngineAdapter.set_mode(v)
+    EngineAdapter.set_continuous(false, s.last_note or 60, s.playhead, { voice = 1 })
     if v == PLAY_MODE_SAMPLER then
       params:set("one_shot", 1)
       s.one_shot = false
@@ -396,7 +425,9 @@ local function init_params()
   end)
   params:set_action("play_speed", function(v)
     s.play_speed = v
-    EngineAdapter.set_rate(v)
+    if not is_sampler_mode() then
+      EngineAdapter.set_rate(v)
+    end
   end)
   params:set_action("one_shot", function(v)
     s.one_shot = (v == 2)
@@ -472,10 +503,15 @@ function init()
   s.scale = Scales.get_scale(s.scale_id)
   s.chord = Chords.get_chord(s.chord_id)
   s.continuous = true
-  EngineAdapter.set_mode(s.play_mode_id)
   apply_play_mode_engine_state()
   EngineAdapter.set_freeze(s.freeze or false)
   EngineAdapter.set_position(s.playhead or 0)
+  if is_sampler_mode() and not s.one_shot then
+    EngineAdapter.set_continuous(true, play_degree_to_midi(1), s.playhead or 0, {
+      pitch_range = s.sampler_pitch_range or 32,
+      voice = 1,
+    })
+  end
 
   GridBackend.connect(grid_key)
 
@@ -499,6 +535,7 @@ function redraw()
 end
 
 function cleanup()
+  EngineAdapter.set_continuous(false, s and s.last_note or 60, s and s.playhead or 0, { voice = 1 })
   if tick_metro then
     tick_metro:stop()
     tick_metro = nil

@@ -43,9 +43,9 @@ function UI.redraw(s)
   screen.stroke()
 
   screen.level(15)
-  local speed = s.play_speed or 100
+  local speed = s.play_speed or 20
   local mode = (s.play_mode_id == 2) and "Sm" or "Gr"
-  local den = (s.play_mode_id == 2) and (s.sampler_density or 80) or (s.density or 0)
+  local den = (s.play_mode_id == 2) and (s.sampler_density or 65) or (s.density or 0)
   screen.move(0, 16)
   screen.text("Md " .. mode .. " Sp " .. tostring(speed) .. " De " .. tostring(den))
 
