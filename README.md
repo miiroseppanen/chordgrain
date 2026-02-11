@@ -1,12 +1,17 @@
 # chordgrain
 
-Chord aware granular sampler for norns with grid focus. Uses Glut as the audio engine.
+Chord aware grid instrument for norns with two playback paths:
+- Grain mode uses Glut for granular texture.
+- Sampler mode uses Softcut transport for smoother full sample travel.
 
 ## Install (norns)
 
 1. Copy the chordgrain folder into your norns scripts folder.
 2. Ensure the Glut engine is installed on norns (as script or engine).
 3. Open chordgrain from the norns Scripts menu.
+4. In params, choose `Play mode`:
+   - `Sampler` for smooth linear sample playback
+   - `Grain` for granular Glut behavior
 
 No extra setup is required. The script runs on a default norns.
 
@@ -30,9 +35,13 @@ Loading screen behavior:
 - Control hints are shown only during startup loading screen
 - Main view shows status and settings without hint text clutter
 
-## Glut dependency and adapter
+## Engine dependency and adapter
 
-All engine calls go through the EngineAdapter module. If Glut is not available or calls fail, the app runs safely without audio. The adapter uses pcall for engine calls.
+All engine calls go through the EngineAdapter module.
+- Grain mode delegates to `lib/engine_glut.lua`.
+- Sampler mode delegates to `lib/engine_softcut.lua`.
+
+If an engine call fails, the adapter keeps the script running safely.
 
 ## Sample default
 

@@ -41,4 +41,18 @@ function Chords.chord_notes(root_midi, chord_intervals, limit)
   return notes
 end
 
+function Chords.chord_notes_scaled(root_midi, chord_intervals, limit, scale_pct)
+  if not chord_intervals or #chord_intervals == 0 then
+    return { root_midi }
+  end
+  limit = limit or 4
+  local scale = math.max(0, math.min(1, (scale_pct or 100) / 100))
+  local notes = {}
+  for i = 1, math.min(limit, #chord_intervals) do
+    local interval = chord_intervals[i] * scale
+    notes[#notes + 1] = root_midi + interval
+  end
+  return notes
+end
+
 return Chords

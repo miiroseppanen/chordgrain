@@ -2,6 +2,10 @@
 
 ## Features
 
+Playback modes:
+- Grain mode: Glut granular playback.
+- Sampler mode: Softcut transport playback with smoother full sample travel.
+
 ### Grid rows
 
 Row 1: Scale select. X 1 to 16 chooses scale index.
@@ -22,15 +26,20 @@ K3: Density. Press toggles freeze.
 
 ### On screen
 
-Main view shows grain size, density, speed, scale, chord, root, octave, note, sample position (percent), continuous (on/off), freeze (on/off), sample name, and top playhead and trigger markers.
+Main view shows mode, density, speed, scale, chord, root, octave, note, sample position (percent), continuous (on/off), freeze (on/off), sample name, and top playhead and trigger markers.
 Loading view shows control hints only during startup.
 
 ## Implementation goals
 
-1. **Glut engine integration** All engine calls via adapter, safe behaviour without Glut.
+1. **Engine integration** All engine calls route through adapter to Glut or Softcut.
 2. **Sample loading** File param and SampleManager, adapter loads sample.
 3. **Polyphonic chord play** Root plus chord intervals, chord_tones_limit and chord_spread, play_chord loop.
 4. **Continuous mode** continuous and playhead, play_speed param, freeze locks position.
+
+Sampler mode behavior:
+- Uses linear transport based playhead movement.
+- Does not rely on periodic granular retrigger logic.
+- Uses reduced pitch and chord scaling defaults to avoid mumble and excessive rate shifts.
 
 Default sample behavior:
 - `sample_file` uses norns audio root `_path.audio` for file browsing

@@ -43,9 +43,11 @@ function UI.redraw(s)
   screen.stroke()
 
   screen.level(15)
-  local speed = s.play_speed or 70
+  local speed = s.play_speed or 100
+  local mode = (s.play_mode_id == 2) and "Sm" or "Gr"
+  local den = (s.play_mode_id == 2) and (s.sampler_density or 80) or (s.density or 0)
   screen.move(0, 16)
-  screen.text("Gr " .. tostring(s.grain_size or 0) .. " De " .. tostring(s.density or 0) .. " Sp " .. tostring(speed))
+  screen.text("Md " .. mode .. " Sp " .. tostring(speed) .. " De " .. tostring(den))
 
   local scale = Scales.get_scale(s.scale_id or 1)
   local chord = Chords.get_chord(s.chord_id or 1)
@@ -63,7 +65,8 @@ function UI.redraw(s)
   screen.text("Pos " .. tostring(pos_pct) .. "% C " .. (s.continuous and "On" or "Off") .. " F " .. (s.freeze and "On" or "Off") .. " 1S " .. (s.one_shot and "On" or "Off"))
 
   screen.move(0, 48)
-  screen.text("Pr " .. tostring(s.pitch_range or 60) .. " Fo " .. tostring(s.focus_amount or 60) .. " Sm " .. clip((s.sample_name and s.sample_name ~= "" and s.sample_name or "none"), 10))
+  local pr = (s.play_mode_id == 2) and (s.sampler_pitch_range or 32) or (s.pitch_range or 60)
+  screen.text("Pr " .. tostring(pr) .. " Fo " .. tostring(s.focus_amount or 60) .. " Sm " .. clip((s.sample_name and s.sample_name ~= "" and s.sample_name or "none"), 10))
 
   screen.update()
 end

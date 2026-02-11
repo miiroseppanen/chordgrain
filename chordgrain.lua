@@ -23,6 +23,8 @@ local DEFAULT_SAMPLE_PATHS = {
   "/home/we/dust/audio/common/hermit_leaves.wav",
   "/home/we/dust/audio/hermit_leaves.wav",
 }
+local PLAY_MODE_GRAIN = 1
+local PLAY_MODE_SAMPLER = 2
 
 local PLAY_CENTER_X = 8
 local PLAY_ROW_OCTAVE_SHIFT = {
@@ -66,9 +68,13 @@ end
 local function sync_state_from_params()
   s.grain_size = params:get("grain_size")
   s.density = params:get("density")
+  s.sampler_density = params:get("sampler_density")
+  s.play_mode_id = params:get("play_mode")
   s.play_speed = params:get("play_speed")
   s.one_shot = params:get("one_shot") == 2
   s.pitch_range = params:get("pitch_range")
+  s.sampler_pitch_range = params:get("sampler_pitch_range")
+  s.sampler_chord_scale = params:get("sampler_chord_scale")
   s.focus_amount = params:get("focus_amount")
   s.focus_width = params:get("focus_width")
   s.focus_time_ms = params:get("focus_time_ms")
@@ -80,6 +86,27 @@ local function sync_state_from_params()
   s.chord_tones_limit = (params:get("chord_tones_limit") or 2) + 1
   s.scale = Scales.get_scale(s.scale_id)
   s.chord = Chords.get_chord(s.chord_id)
+end
+
+local function is_sampler_mode()
+  return (s.play_mode_id or PLAY_MODE_GRAIN) == PLAY_MODE_SAMPLER
+end
+
+local function apply_play_mode_engine_state()
+  EngineAdapter.set_mode(s.play_mode_id)
+  if is_sampler_mode() then
+    -- Sampler mode uses linear transport playback.
+    EngineAdapter.set_density(s.sampler_density or 80)
+    EngineAdapter.set_rate(s.play_speed or 100)
+  else
+    EngineAdapter.set_grain_size(s.grain_size or 70)
+    EngineAdapter.set_density(s.density or 35)
+    EngineAdapter.set_jitter(s.texture_jitter or 5)
+    EngineAdapter.set_spread(s.texture_spread or 5)
+    EngineAdapter.set_envscale(90)
+    EngineAdapter.set_rate(s.play_speed or 100)
+  end
+  EngineAdapter.set_volume(90)
 end
 
 local function wrap_play_degree(v)
@@ -135,7 +162,12 @@ local function trigger_at(pos_norm, degree)
   local chord = s.chord
   local intervals = chord and chord.intervals or { 0 }
   local limit = s.chord_tones_limit or 3
-  local notes = Chords.chord_notes(midi, intervals, limit)
+  local notes
+  if is_sampler_mode() then
+    notes = Chords.chord_notes_scaled(midi, intervals, limit, s.sampler_chord_scale or 30)
+  else
+    notes = Chords.chord_notes(midi, intervals, limit)
+  end
   local chord_degrees = {}
   if intervals and #intervals > 0 then
     for i = 1, math.min(limit, #intervals) do
@@ -146,18 +178,18 @@ local function trigger_at(pos_norm, degree)
     chord_degrees[1] = degree
   end
   local opts = {
-    chord_spread = s.chord_spread or 0.02,
+    chord_spread = is_sampler_mode() and 0 or (s.chord_spread or 0.02),
     chord_tones_limit = limit,
     one_shot = s.one_shot,
     one_shot_release_s = 0.20,
-    pitch_range = s.pitch_range or 40,
+    pitch_range = is_sampler_mode() and (s.sampler_pitch_range or 32) or (s.pitch_range or 60),
   }
-  local focused_pos = focus_center_from_pos(pos_norm)
+  local focused_pos = is_sampler_mode() and pos_norm or focus_center_from_pos(pos_norm)
   EngineAdapter.play_chord(notes, focused_pos, opts)
   s.focus_center = focused_pos
   s.focus_phase = 0
   s.focus_until = util.time() + ((s.focus_time_ms or 0) / 1000)
-  s.focus_active = (s.focus_amount or 0) > 0 and (s.focus_time_ms or 0) > 0
+  s.focus_active = (not is_sampler_mode()) and (s.focus_amount or 0) > 0 and (s.focus_time_ms or 0) > 0
   s.last_note = midi
   s.last_pos = focused_pos
   s.pressed_degree = degree
@@ -256,11 +288,19 @@ local function tick()
 
   if s.continuous and not s.freeze and not s.one_shot then
     local speed_pct = params:get("play_speed") or 100
-    local advance = (speed_pct / 60 / 60) * dt
+    local advance
+    if is_sampler_mode() then
+      -- Sampler mode uses direct transport: percent of sample per second.
+      advance = (speed_pct / 100) * dt
+    else
+      -- Grain mode keeps slow scan behavior.
+      advance = (speed_pct / 60 / 60) * dt
+    end
     s.playhead = s.playhead + advance
     if s.playhead >= 1 then s.playhead = s.playhead - 1 end
     if s.playhead < 0 then s.playhead = s.playhead + 1 end
     EngineAdapter.set_position(s.playhead)
+
   end
 
   if s.focus_active and not s.freeze then
@@ -298,12 +338,16 @@ local function init_params()
   end
 
   params:add_separator("chordgrain_defaults", "Default settings")
+  params:add_option("play_mode", "Play mode", { "Grain", "Sampler" }, 2)
   params:add_number("grain_size", "Grain size", 1, 100, 70)
   params:add_number("density", "Density", 1, 100, 35)
-  params:add_number("play_speed", "Play speed", 1, 200, 70)
-  params:add_option("one_shot", "One shot mode", { "Off", "On" }, 2)
+  params:add_number("sampler_density", "Sampler density", 1, 100, 80)
+  params:add_number("play_speed", "Play speed", 1, 200, 100)
+  params:add_option("one_shot", "One shot mode", { "Off", "On" }, 1)
   params:add_number("pitch_range", "Pitch range", 0, 100, 60)
-  params:add_number("focus_amount", "Focus amount", 0, 100, 60)
+  params:add_number("sampler_pitch_range", "Sampler pitch", 0, 100, 32)
+  params:add_number("sampler_chord_scale", "Sampler chord", 0, 100, 30)
+  params:add_number("focus_amount", "Focus amount", 0, 100, 0)
   params:add_number("focus_width", "Focus width", 1, 50, 12)
   params:add_number("focus_time_ms", "Focus time ms", 0, 2000, 420)
   params:add_number("texture_jitter", "Texture jitter", 0, 100, 5)
@@ -313,13 +357,42 @@ local function init_params()
   params:add_option("quantize", "Quantize", { "Off", "On" }, 2)
   params:add_option("freeze", "Freeze", { "Off", "On" }, 1)
 
+  params:set_action("play_mode", function(v)
+    s.play_mode_id = v
+    EngineAdapter.set_mode(v)
+    if v == PLAY_MODE_SAMPLER then
+      params:set("one_shot", 1)
+      s.one_shot = false
+      s.continuous = true
+      params:set("focus_amount", 0)
+      s.focus_amount = 0
+      if s.sample_path and s.sample_path ~= "" then
+        EngineAdapter.load_sample(s.sample_path)
+      end
+    else
+      if s.sample_path and s.sample_path ~= "" then
+        EngineAdapter.load_sample(s.sample_path)
+      end
+    end
+    apply_play_mode_engine_state()
+  end)
   params:set_action("grain_size", function(v)
     s.grain_size = v
-    EngineAdapter.set_grain_size(v)
+    if not is_sampler_mode() then
+      EngineAdapter.set_grain_size(v)
+    end
   end)
   params:set_action("density", function(v)
     s.density = v
-    EngineAdapter.set_density(v)
+    if not is_sampler_mode() then
+      EngineAdapter.set_density(v)
+    end
+  end)
+  params:set_action("sampler_density", function(v)
+    s.sampler_density = v
+    if is_sampler_mode() then
+      EngineAdapter.set_density(v)
+    end
   end)
   params:set_action("play_speed", function(v)
     s.play_speed = v
@@ -334,6 +407,12 @@ local function init_params()
   params:set_action("pitch_range", function(v)
     s.pitch_range = v
   end)
+  params:set_action("sampler_pitch_range", function(v)
+    s.sampler_pitch_range = v
+  end)
+  params:set_action("sampler_chord_scale", function(v)
+    s.sampler_chord_scale = v
+  end)
   params:set_action("focus_amount", function(v)
     s.focus_amount = v
   end)
@@ -345,11 +424,15 @@ local function init_params()
   end)
   params:set_action("texture_jitter", function(v)
     s.texture_jitter = v
-    EngineAdapter.set_jitter(v)
+    if not is_sampler_mode() then
+      EngineAdapter.set_jitter(v)
+    end
   end)
   params:set_action("texture_spread", function(v)
     s.texture_spread = v
-    EngineAdapter.set_spread(v)
+    if not is_sampler_mode() then
+      EngineAdapter.set_spread(v)
+    end
   end)
   params:set_action("freeze", function(v)
     s.freeze = (v == 2)
@@ -388,13 +471,9 @@ function init()
   sync_state_from_params()
   s.scale = Scales.get_scale(s.scale_id)
   s.chord = Chords.get_chord(s.chord_id)
-  EngineAdapter.set_grain_size(s.grain_size or 70)
-  EngineAdapter.set_density(s.density or 35)
-  EngineAdapter.set_rate(s.play_speed or 70)
-  EngineAdapter.set_jitter(s.texture_jitter or 5)
-  EngineAdapter.set_spread(s.texture_spread or 5)
-  EngineAdapter.set_envscale(90)
-  EngineAdapter.set_volume(90)
+  s.continuous = true
+  EngineAdapter.set_mode(s.play_mode_id)
+  apply_play_mode_engine_state()
   EngineAdapter.set_freeze(s.freeze or false)
   EngineAdapter.set_position(s.playhead or 0)
 
