@@ -26,10 +26,12 @@ No extra setup is required. The script runs on a default norns.
 - K3 press toggles freeze
 
 Grid play area behavior:
-- Rows 4 to 8 use one note per key mapping
+- Rows 3 to 8 are keyboard rows, one octave per row
+- Row 4 left edge is Middle C
+- Columns 13 to 16 are bright overflow keys reserved for future use
 - Pressing one key triggers the selected chord from that note
 - Grid highlights the pressed note and chord tones
-- Scale, chord, root and octave changes retrigger the latest pressed note so changes are immediately audible
+- Scale and chord changes retrigger the latest pressed note so changes are immediately audible
 - Playhead does not jump on note press, it continues from transport position
 
 Loading screen behavior:
@@ -62,5 +64,5 @@ Sampler style transport note:
 
 - Connect monome grid and verify row mapping and LED levels
 - Connect midigrid and run the same key sequence
-- Confirm position and degree mapping match on both devices
+- Confirm note mapping and octave layout match on both devices
 - Confirm K1 short press always follows norns menu toggle behavior

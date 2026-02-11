@@ -3,7 +3,7 @@
 -- norns: E1 pos E2 grain E3 den
 -- norns: K1 menu K2 cont K3 freeze
 -- grid: r1 scale r2 chord
--- grid: r3 root/oct r4-8 play
+-- grid: r3-8 note keys, 6 octaves
 
 engine.name = "Glut"
 
@@ -18,6 +18,7 @@ local SampleManager = include("lib/sample_manager")
 
 local s
 local tick_metro
+local last_trigger_midi
 
 local DEFAULT_SAMPLE_PATHS = {
   "/home/we/dust/audio/hermit_leaves.wav",
@@ -25,15 +26,6 @@ local DEFAULT_SAMPLE_PATHS = {
 }
 local PLAY_MODE_GRAIN = 1
 local PLAY_MODE_SAMPLER = 2
-
-local PLAY_CENTER_X = 8
-local PLAY_ROW_OCTAVE_SHIFT = {
-  [4] = 0,
-  [5] = 1,
-  [6] = -1,
-  [7] = 2,
-  [8] = -2,
-}
 
 local function valid_sample_path(path)
   if not path or path == "" then
@@ -112,56 +104,15 @@ local function apply_play_mode_engine_state()
   EngineAdapter.set_volume(90)
 end
 
-local function wrap_play_degree(v)
-  return ((v - 1) % 80) + 1
-end
-
-local function scale_steps_to_midi(step_offset, root_semitone, octave_base, scale_intervals, quantize)
-  local tonic = (octave_base + 1) * 12 + root_semitone
-  if quantize == false then
-    return tonic + step_offset
-  end
-
-  if not scale_intervals or #scale_intervals == 0 then
-    scale_intervals = { 0, 2, 4, 5, 7, 9, 11 }
-  end
-
-  local n = #scale_intervals
-  if step_offset >= 0 then
-    local oct = math.floor(step_offset / n)
-    local idx = step_offset % n
-    return tonic + scale_intervals[idx + 1] + oct * 12
-  end
-
-  local abs_steps = -step_offset
-  local oct = math.floor(abs_steps / n)
-  local idx = abs_steps % n
-  if idx == 0 then
-    return tonic - (oct * 12)
-  end
-  return tonic + scale_intervals[n - idx + 1] - ((oct + 1) * 12)
-end
-
-local function play_degree_to_midi(play_degree)
-  local x, y = GridMap.degree_to_key(play_degree)
-  x = x or PLAY_CENTER_X
-  y = y or 4
-  local intervals = s.scale and s.scale.intervals
-  local octave_shift = PLAY_ROW_OCTAVE_SHIFT[y] or 0
-  local steps_per_oct = intervals and #intervals or 7
-  local step_offset = (x - PLAY_CENTER_X) + (octave_shift * steps_per_oct)
-  return scale_steps_to_midi(step_offset, s.root, s.octave, intervals, s.quantize)
-end
-
 local function focus_center_from_pos(pos_norm)
   local amount = clamp((s.focus_amount or 0) / 100, 0, 1)
   return clamp((pos_norm * (1 - amount)) + (0.5 * amount), 0, 1)
 end
 
-local function trigger_at(pos_norm, degree)
+local function trigger_note_at(pos_norm, midi)
   sync_state_from_params()
   pos_norm = clamp(pos_norm or 0, 0, 1)
-  local midi = play_degree_to_midi(degree)
+  midi = math.floor((midi or 60) + 0.5)
   local chord = s.chord
   local intervals = chord and chord.intervals or { 0 }
   local limit = s.chord_tones_limit or 3
@@ -170,15 +121,6 @@ local function trigger_at(pos_norm, degree)
     notes = Chords.chord_notes_scaled(midi, intervals, limit, s.sampler_chord_scale or 30)
   else
     notes = Chords.chord_notes(midi, intervals, limit)
-  end
-  local chord_degrees = {}
-  if intervals and #intervals > 0 then
-    for i = 1, math.min(limit, #intervals) do
-      local d = degree + (intervals[i] or 0)
-      chord_degrees[#chord_degrees + 1] = wrap_play_degree(d)
-    end
-  else
-    chord_degrees[1] = degree
   end
   local opts = {
     chord_spread = is_sampler_mode() and 0 or (s.chord_spread or 0.02),
@@ -195,9 +137,10 @@ local function trigger_at(pos_norm, degree)
   s.focus_active = (not is_sampler_mode()) and (s.focus_amount or 0) > 0 and (s.focus_time_ms or 0) > 0
   s.last_note = midi
   s.last_pos = focused_pos
-  s.pressed_degree = degree
+  s.pressed_degree = nil
   s.last_chord_notes = notes
-  s.last_chord_degrees = chord_degrees
+  s.last_chord_degrees = {}
+  last_trigger_midi = midi
   EngineAdapter.set_position(focused_pos)
   if is_sampler_mode() and s.continuous and not s.one_shot and not s.freeze then
     EngineAdapter.set_continuous(true, midi, focused_pos, {
@@ -208,14 +151,14 @@ local function trigger_at(pos_norm, degree)
 end
 
 local function retrigger_current_selection()
-  if not s or not s.pressed_degree then
+  if not s or not last_trigger_midi then
     return
   end
   local pos = s.last_pos
   if pos == nil then
     pos = s.playhead or s.scrub or 0
   end
-  trigger_at(pos, s.pressed_degree)
+  trigger_note_at(pos, last_trigger_midi)
 end
 
 local function grid_key(g, x, y, z)
@@ -234,20 +177,13 @@ local function grid_key(g, x, y, z)
     retrigger_current_selection()
     return
   end
-  local root, oct = GridMap.key_to_root(x, y)
-  if root ~= nil then
-    s.root = root
-    retrigger_current_selection()
+  local midi, overflow = GridMap.key_to_note(x, y)
+  if overflow then
     return
   end
-  if oct ~= nil then
-    s.octave = oct
-    retrigger_current_selection()
-    return
-  end
-  local pos_norm, degree = GridMap.key_to_play(x, y)
-  if pos_norm and degree then
-    trigger_at(pos_norm, degree)
+  if midi then
+    local pos = s.playhead or s.scrub or 0
+    trigger_note_at(pos, midi)
   end
 end
 
@@ -280,7 +216,7 @@ local function handle_key(n, z)
       s.playhead = s.last_pos and s.last_pos or s.scrub
       EngineAdapter.set_position(s.playhead)
       if is_sampler_mode() and not s.one_shot then
-        local note = s.last_note or play_degree_to_midi(1)
+        local note = s.last_note or 60
         EngineAdapter.set_continuous(true, note, s.playhead, {
           pitch_range = s.sampler_pitch_range or 32,
           voice = 1,
@@ -319,7 +255,7 @@ local function tick()
     if s.playhead < 0 then s.playhead = s.playhead + 1 end
     EngineAdapter.set_position(s.playhead)
     if is_sampler_mode() then
-      local note = s.last_note or play_degree_to_midi(1)
+      local note = s.last_note or 60
       EngineAdapter.set_continuous(true, note, s.playhead, {
         pitch_range = s.sampler_pitch_range or 32,
         voice = 1,
@@ -507,7 +443,7 @@ function init()
   EngineAdapter.set_freeze(s.freeze or false)
   EngineAdapter.set_position(s.playhead or 0)
   if is_sampler_mode() and not s.one_shot then
-    EngineAdapter.set_continuous(true, play_degree_to_midi(1), s.playhead or 0, {
+    EngineAdapter.set_continuous(true, 60, s.playhead or 0, {
       pitch_range = s.sampler_pitch_range or 32,
       voice = 1,
     })

@@ -6,17 +6,22 @@ Grid is 16x8 (128 keys).
 
 Row 1: Scale select, x 1 to 16  
 Row 2: Chord select, x 1 to 16  
-Row 3: Root x 1 to 12, octave x 13 to 16  
-Rows 4 to 8: Play area where every key is one note
+Rows 3 to 8: Keyboard rows where each row is one octave
+
+Anchor:
+Row 4, x 1 is Middle C.
+
+Octave direction:
+From top to bottom, each next row is one octave lower.
+
+Overflow keys:
+x 13 to 16 are marked bright and reserved for future functions.
 
 ## Formulas
 
-Position:
-pos_norm = (x minus 1) / 15
-
-Degree:
-row_index = y minus 4  
-degree = 1 + row_index times 16 + (x minus 1)
+Note:
+base_midi(y) = 60 + (4 minus y) times 12  
+midi = base_midi(y) + (x minus 1), for x 1 to 12 and y 3 to 8
 
 ## LED policy
 
@@ -26,6 +31,7 @@ Last trigger marker: medium
 Continuous playhead marker: low pulse  
 Pressed note: full  
 Chord tones for pressed note: medium
+Overflow keys: bright
 
 ## Compatibility
 

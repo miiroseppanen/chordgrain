@@ -10,12 +10,14 @@ Playback modes:
 
 Row 1: Scale select. X 1 to 16 chooses scale index.
 Row 2: Chord select. X 1 to 16 chooses chord index.
-Row 3: Root and octave: keys 1 to 12 set root semitone (0 to 11), keys 13 to 16 set octave (2 to 5).
-Rows 4 to 8: Play area. Every key is one note and also one position trigger.
+Rows 3 to 8: Keyboard rows. Each row is one octave and x 1 to 12 are notes.
+Row 4, x 1 is Middle C.
+Each row lower on grid is one octave lower.
+x 13 to 16 are bright overflow keys reserved for future actions.
 
 Grid formulas:
-pos_norm = (x minus 1) / 15
-degree = 1 + (y minus 4) times 16 + (x minus 1)
+base_midi(y) = 60 + (4 minus y) times 12
+midi = base_midi(y) + (x minus 1)
 
 ### Encoders
 
@@ -58,5 +60,5 @@ Grid transport is normalized in `lib/grid_backend.lua`. This keeps monome grid a
 Chord note visualization:
 - Pressed play key is highlighted at full level in grid
 - Other notes of selected chord are highlighted at medium level
-- Scale, chord, root and octave changes retrigger the latest pressed note selection
+- Scale and chord changes retrigger the latest pressed note selection
 - Playhead marker does not jump to note trigger position
